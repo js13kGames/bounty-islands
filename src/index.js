@@ -1,5 +1,3 @@
-// https://github.com/lifthrasiir/roadroller
-
 import Renderer from './renderer';
 import seedrandom from './seedrandom';
 import pds from './pds';
@@ -47,6 +45,7 @@ import {
     BaseProcessor,
     BaseAIProcessor,
     getAlphaTransform,
+    destinationTransform,
 } from './ecs/systems';
 
 import ecs from './ecs/ecs';
@@ -194,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const interfaceSpritePosition = new Vector();
     const startInterfaceFrame = smoothAtlas.frame(
-        getStartInterface(500, 200, controller._keys),
+        getStartInterface(500, 300, controller._keys),
         true,
     );
     const startInterfaceSprite = new Sprite(startInterfaceFrame, {
@@ -236,6 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
         gameTitleIslandsSprite,
     );
 
+    let triskaidekaphobiaIndex = 0;
+    const triskaidekaphobia = ['Triskaidekaphobia!', 'Not included', 'But this is not certain...'];
+
     const resizeMenu = () => {
         bigMinimapPosition.set(scene.width / 2 - bigMinimapSize / 3, scene.height / 2);
         interfaceSpritePosition
@@ -243,12 +245,21 @@ document.addEventListener('DOMContentLoaded', () => {
             .add(new Vector(bigMinimapSize / 2 - 100, 0));
         gameTitleBountySpritePosition
             .from(bigMinimapPosition)
-            .add(new Vector(bigMinimapSize / 2 - 20, -170));
+            .add(new Vector(bigMinimapSize / 2 - 20, -200));
         gameTitleIslandsSpritePosition
             .from(bigMinimapPosition)
-            .add(new Vector(bigMinimapSize / 2 - 20, 170));
+            .add(new Vector(bigMinimapSize / 2 - 20, 200));
 
-        startInterfaceFrame.redraw(getStartInterface(500, 200, controller._keys, finished, win));
+        startInterfaceFrame.redraw(
+            getStartInterface(
+                500,
+                300,
+                controller._keys,
+                finished,
+                win,
+                triskaidekaphobia[triskaidekaphobiaIndex % 3],
+            ),
+        );
         bigMinimapSprite.rotation += 0.001;
 
         if (!started) {
@@ -285,6 +296,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (keyCode === 70) {
             requestFullscreen();
+        }
+
+        if (keyCode === 84) {
+            triskaidekaphobiaIndex++;
         }
     };
 
@@ -387,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const fraction = {
                 _color: getColor(i),
                 _index: i,
-                _gold: hunterCost,
+                _gold: hunterCost * 3,
                 _isPlayer: i === playerIndex,
                 _antagonist: i === antagonistIndex,
             };
@@ -591,8 +606,18 @@ document.addEventListener('DOMContentLoaded', () => {
             cell.tile = tile;
         });
 
+        const bindings = getArray(10).map(() => null);
+
+        const bindKey = (index, entity) => {
+            const oldindex = bindings.indexOf(entity);
+            oldindex !== -1 && (bindings[oldindex] = null);
+            bindings[index] = entity;
+        };
+
         const uiUpdater = (entity, name, sprite, info) => {
-            interfaceFrame.redraw(getInterface(controller, entity, name, sprite, info)[0]);
+            interfaceFrame.redraw(
+                getInterface(controller, entity, name, sprite, info, bindings.indexOf(entity))[0],
+            );
             const frame = sprite?.frame || avatarFrame;
             // const scale = frame.size.x > uiAvatarRectSize ? (uiAvatarRectSize * 0.8) / frame.size.x : 1;
             const scale = frame.size.x > 40 ? 0.5 : 1;
@@ -645,22 +670,62 @@ document.addEventListener('DOMContentLoaded', () => {
         const hunterInterfaceSelector = ecs.select(Hunter, Fraction, Selector, Player);
 
         const changeDestination = (destination) => {
+            const createTarget = (destination) => {
+                if (baseInterfaceSelector.size() || hunterInterfaceSelector.size()) {
+                    const [destinationPosition, destinationPlayer] = destination.get(
+                        Position,
+                        Player,
+                    );
+                    const position = new Position().from(destinationPosition);
+                    const sprite = new Sprite(selectorBaseFrame, {
+                        tint: destinationPlayer ? 0x00ff00 : 0xff0000,
+                        position,
+                    });
+                    selectLayer.add(sprite);
+
+                    ecs.create().add(
+                        position,
+                        sprite,
+                        new Velocity(0, 0, 3),
+                        new Transform(destinationTransform),
+                    );
+                }
+            };
+
             baseInterfaceSelector.iterate((entity, [base]) => {
                 base._changeDestination(destination || entity);
+                createTarget(destination || entity);
             });
             hunterInterfaceSelector.iterate((entity, [hunter]) => {
                 const hunterHome = hunter._home.get(Base);
                 hunterHome._changeDestination(destination || hunter._home);
+                createTarget(destination || hunter._home);
             });
         };
 
-        controller._callbacks._onKeyUp = (keyCode) => {
+        controller._callbacks._onKeyUp = (keyCode, shiftKey) => {
             if (keyCode === 70) {
                 requestFullscreen();
             }
 
             if (keyCode === 66) {
                 changeDestination();
+            }
+
+            if (keyCode >= 48 && keyCode <= 57) {
+                const index = keyCode - 48;
+
+                if (shiftKey) {
+                    baseInterfaceSelector.iterate((entity) => bindKey(index, entity));
+                    hunterInterfaceSelector.iterate((entity, [hunter]) =>
+                        bindKey(index, hunter._home),
+                    );
+                } else {
+                    if (bindings[index]) {
+                        selectSelector.iterate((entity) => entity.remove(Selector));
+                        bindings[index].add(new Selector());
+                    }
+                }
             }
 
             baseInterfaceSelector.iterate((entity, [base]) => {
@@ -803,10 +868,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const point = new Vector();
 
-            _keys[65] && point.sub(vecStrafe); // a
-            _keys[68] && point.add(vecStrafe); // d
-            _keys[87] && point.sub(vecDirection); // w
-            _keys[83] && point.add(vecDirection); // s
+            (_keys[65] || _keys[37]) && point.sub(vecStrafe); // a
+            (_keys[68] || _keys[39]) && point.add(vecStrafe); // d
+            (_keys[87] || _keys[38]) && point.sub(vecDirection); // w
+            (_keys[83] || _keys[40]) && point.add(vecDirection); // s
 
             const offset = point.length() ? point.norm().mul(speed * secondsDelta) : point;
             const newPosition = offset.add(camera.at);

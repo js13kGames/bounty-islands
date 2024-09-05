@@ -6,7 +6,7 @@ class Controller {
         const contextmenu = (event) => event.preventDefault();
         const onKeyDown = (event) => this.onKeyChange(event, true);
         const onKeyUp = (event) => {
-            this._callbacks._onKeyUp(event.keyCode);
+            this._callbacks._onKeyUp(event.keyCode, event.shiftKey);
             this.onKeyChange(event, false);
         };
 

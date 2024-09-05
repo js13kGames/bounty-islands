@@ -450,37 +450,35 @@ export const drawKeycap = (ctx, pressed, key, text) => {
     ctx.restore();
 };
 
-// const startPattern = getPatternImg(width, height);
-
-export const getStartInterface = (width, height, keys, finished, win) => {
+export const getStartInterface = (width, height, keys, finished, win, triskaidekaphobia) => {
     const [canvas, ctx] = createCanvas(width * 3, height);
 
     ctx.translate(width / 2, height / 2);
 
-    // const pattern = ctx.createPattern(getPatternImg(width, height), null);
     const pattern = ctx.createPattern(patternImg, null);
     const matrix = new DOMMatrix();
     pattern.setTransform(matrix.translate(width / 2, height / 2));
     drawRect(ctx, pattern, width, height, 10, 6);
-    // ctx.resetTransform();
     const padding = height / 5;
     drawRect(ctx, '#baa88a99', width - padding, height - padding, 10, 3);
 
     const buttonOffset = 47;
 
-    ctx.translate(-width / 5, 0);
+    ctx.translate(-width / 5, -buttonOffset * 1.5);
 
     if (!finished) {
-        drawKeycap(ctx, keys[67], 'C', `Change island`);
-
-        ctx.translate(0, -buttonOffset);
         drawKeycap(ctx, keys[83], 'S', `Start game`);
 
-        // ctx.translate(0, buttonOffset * 2);
+        ctx.translate(0, buttonOffset);
+        drawKeycap(ctx, keys[67], 'C', `Change island`);
 
-        ctx.translate(0, buttonOffset * 2);
+        ctx.translate(0, buttonOffset);
         drawKeycap(ctx, keys[70], 'F', document.fullscreenElement ? 'Window mode' : 'Full screen');
+
+        ctx.translate(0, buttonOffset);
+        drawKeycap(ctx, keys[84], 'T', triskaidekaphobia);
     } else {
+        ctx.translate(0, buttonOffset * 1.5);
         drawKeycap(ctx, false, 'F5', `Restart game`);
         ctx.translate(width / 13, -buttonOffset);
         drawText(ctx, `The island is ${win ? 'captured' : 'lost'}!`, 25, true, false, '#362414');
@@ -507,7 +505,7 @@ export const getGameTitle = (text, color = '#c49242', big, size = 400) => {
     return canvas;
 };
 
-export const getInterface = (controller, entity, name, sprite, info = []) => {
+export const getInterface = (controller, entity, name, sprite, info = [], bind) => {
     const [canvas, ctx] = createCanvas(uiPanelWidth * 2, uiPanelHeight);
 
     if (!name) {
@@ -525,6 +523,10 @@ export const getInterface = (controller, entity, name, sprite, info = []) => {
     if (name) {
         ctx.translate(uiAvatarRectSize / 2 + uiPadding, uiAvatarRectSize / 2 + uiPadding);
         drawRect(ctx, '#baa88a', uiAvatarRectSize, uiAvatarRectSize, 10, 3);
+
+        if (bind !== -1) {
+            drawText(ctx, bind, 25, true, true, '#baa88a', 0, uiAvatarRectSize * 0.8, true);
+        }
         ctx.resetTransform();
 
         ctx.translate(uiPanelWidth / 2 + uiAvatarRectSize / 2 + uiPadding / 2, uiPanelHeight / 2);
@@ -536,6 +538,7 @@ export const getInterface = (controller, entity, name, sprite, info = []) => {
             10,
             3,
         );
+
         ctx.resetTransform();
     }
 

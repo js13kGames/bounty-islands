@@ -85,6 +85,15 @@ const getExhaustTransform = (duration, scale) => ({
     },
 });
 
+export const destinationTransform = {
+    _duration: 2,
+    end: endTransformEject,
+    update(entity, stage) {
+        updateAlpha(entity, stage, 1, 0);
+        updateScale(entity, stage, 0.9, 0.5);
+    },
+};
+
 export class Movement {
     constructor(ecs) {
         const selector = ecs.select(Position, Velocity);
